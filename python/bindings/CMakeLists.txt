@@ -100,6 +100,13 @@ target_link_libraries(${_PYMOD}
 if(NUMPY_FOUND)
   target_include_directories(${_PYMOD} PRIVATE ${NUMPY_INCLUDE_DIR})
 
+  # jetson-utils-python links 'npymath' and propagates it as a PUBLIC/INTERFACE
+  # dependency. Its link_directories(numpy/core/lib) is directory-scoped and
+  # does NOT propagate to this target, so the inherited -lnpymath fails to
+  # resolve ("cannot find -lnpymath"). libnpymath.a ships inside numpy at
+  # <include>/../lib, so add it to this target's link search path.
+  target_link_directories(${_PYMOD} PRIVATE ${NUMPY_INCLUDE_DIR}/../lib)
+
   # Only for NumPy < 2.0: attempt to link npymath if it exists
   if(DEFINED NUMPY_VERSION AND NUMPY_VERSION VERSION_LESS "2.0")
     find_library(NPYMATH_LIB NAMES npymath)
