@@ -1647,13 +1647,19 @@ bool tensorNet::LoadEngine( nvinfer1::ICudaEngine* engine,
         nvinfer1::Dims outputDims = engine->getTensorShape(output_blobs[n].c_str());
 	#elif NV_TENSORRT_MAJOR > 1
 		nvinfer1::Dims outputDims = validateDims(engine->getBindingDimensions(outputIndex));
+	#else
+		Dims3 outputDims = engine->getBindingDimensions(outputIndex);
+	#endif
 
+	// strip the leading batch dim for ONNX (EXPLICIT_BATCH). On TensorRT >= 10
+	// getTensorShape() returns the full NCHW/NxBOXESxCLASSES dims *with* the batch
+	// axis, so this must run on the TRT10 path too -- previously it was nested inside
+	// the TRT<10 (#elif) branch only, leaving detectNet's DIMS_C/DIMS_H/DIMS_W off by
+	// one. That swapped numClasses<->numBoxes (e.g. classes=3000, boxes=1) and produced
+	// garbage detections. The input path already applies shiftDims() unconditionally.
 	#if NV_TENSORRT_MAJOR >= 7
 		if( mModelType == MODEL_ONNX )
 			outputDims = shiftDims(outputDims);  // change NCHW to CHW if EXPLICIT_BATCH set
-	#endif
-	#else
-		Dims3 outputDims = engine->getBindingDimensions(outputIndex);
 	#endif
 
 		const size_t outputSize = mMaxBatchSize * sizeDims(outputDims) * sizeof(float);
