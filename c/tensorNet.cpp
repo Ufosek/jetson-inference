@@ -1441,6 +1441,12 @@ bool tensorNet::LoadEngine( nvinfer1::ICudaEngine* engine,
 		return 0;
 	}
 
+	// assign mContext before the binding loops below: on TensorRT >= 10 those
+	// loops call mContext->setTensorAddress(), but the member was only assigned
+	// at the end of this function, so the first LoadEngine() dereferenced a NULL
+	// mContext and segfaulted. (upstream regression from commit c038530e)
+	mContext = context;
+
 	if( mEnableDebug )
 	{
 		LogVerbose(LOG_TRT "device %s, enabling context debug sync.\n", deviceTypeToStr(device));
